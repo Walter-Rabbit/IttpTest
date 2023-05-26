@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using IttpTest.Web.Tools.Requirements;
+using Microsoft.AspNetCore.Authorization;
 
-namespace IttpTest.Web.Tools;
+namespace IttpTest.Web.Tools.Handlers;
 
 public class RoleHandler : AuthorizationHandler<RoleRequirement>
 {

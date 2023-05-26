@@ -2,6 +2,7 @@
 using IttpTest.Data;
 using IttpTest.Domain.Exceptions;
 using IttpTest.Domain.Models;
+using IttpTest.Web.Dtos;
 using Microsoft.Extensions.Configuration;
 
 namespace IttpTest.Core;
@@ -37,27 +38,7 @@ public class UserService : IUserService
         _ittpContext = ittpContext;
     }
 
-    public Task Create(User user)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task Update(User user)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<List<User>> GetNotRevoked()
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<User> GetByLogin(string login)
-    {
-        throw new NotImplementedException();
-    }
-
-    public User GetByLoginAndPassword(string login, string password)
+    public CookieDto SignIn(string login, string password)
     {
         var user = _ittpContext.Users.FirstOrDefault(u => u.Login == login);
 
@@ -66,20 +47,106 @@ public class UserService : IUserService
             throw new NotFoundException("There is no user with such login.");
         }
 
+        if (user.RevokedOn is not null)
+        {
+            throw new RevokedException($"This user was revoked on {user.RevokedOn}");
+        }
+        
         if (user.Password != password)
         {
             throw new IncorrectPasswordException("Incorrect password.");
         }
 
-        return user;
+        return new CookieDto
+        {
+            Name = user.Name,
+            Login = user.Login,
+            Admin = user.Admin,
+            Id = user.Id,
+        };
     }
 
-    public Task<List<User>> GetOlderThen(DateOnly age)
+    public Task Create(UserCreateDto userCreateDto, string creatorLogin)
+    {
+        var user = new User(
+            Guid.NewGuid(),
+            userCreateDto.Login,
+            userCreateDto.Password,
+            userCreateDto.Name,
+            userCreateDto.Gender,
+            userCreateDto.BirthDate,
+            false,
+            DateTime.Now,
+            userCreateDto.Login);
+
+        throw new NotImplementedException();
+    }
+
+    public Task Create(UserCreateByAdminDto userCreateByAdminDto, string creatorLogin)
+    {
+        var user = new User(
+            Guid.NewGuid(),
+            userCreateByAdminDto.Login,
+            userCreateByAdminDto.Password,
+            userCreateByAdminDto.Name,
+            userCreateByAdminDto.Gender,
+            userCreateByAdminDto.BirthDate,
+            userCreateByAdminDto.Admin,
+            DateTime.Now,
+            creatorLogin);
+
+        throw new NotImplementedException();
+    }
+
+    public Task Update(UserUpdateDto userUpdateDto, string modifierLogin)
     {
         throw new NotImplementedException();
     }
 
-    public Task Revoke(string login)
+    public Task<List<UserGetDto>> GetNotRevoked()
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<UserGetDto> GetByLogin(string login)
+    {
+        throw new NotImplementedException();
+    }
+
+    public UserGetDto GetByLoginAndPassword(string login, string password)
+    {
+        var user = _ittpContext.Users.FirstOrDefault(u => u.Login == login);
+
+        if (user is null)
+        {
+            throw new NotFoundException("There is no user with such login.");
+        }
+        
+        if (user.RevokedOn is not null)
+        {
+            throw new RevokedException($"This user was revoked on {user.RevokedOn}");
+        }
+
+        if (user.Password != password)
+        {
+            throw new IncorrectPasswordException("Incorrect password.");
+        }
+
+        return new UserGetDto
+        {
+            Name = user.Name,
+            BirthDate = user.BirthDate,
+            Gender = user.Gender,
+            IsActive = user.ModifiedOn is null
+        };
+    }
+
+    public Task<List<UserGetDto>> GetOlderThen(DateTime age)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task Revoke(string login, string revokerLogin)
     {
         throw new NotImplementedException();
     }

@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 
-namespace IttpTest.Web.Tools;
+namespace IttpTest.Web.Tools.Requirements;
 
 public class RoleRequirement : IAuthorizationRequirement
 {

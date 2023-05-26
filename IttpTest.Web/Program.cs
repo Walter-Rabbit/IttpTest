@@ -1,6 +1,8 @@
 using IttpTest.Core;
 using IttpTest.Data;
 using IttpTest.Web.Tools;
+using IttpTest.Web.Tools.Handlers;
+using IttpTest.Web.Tools.Requirements;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Net.Http.Headers;

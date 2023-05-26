@@ -1,16 +1,19 @@
 ﻿using IttpTest.Domain.Models;
+using IttpTest.Web.Dtos;
 
 namespace IttpTest.Core;
 
 public interface IUserService
 {
-    Task Create(User user);
-    Task Update(User user);
-    Task<List<User>> GetNotRevoked();
-    Task<User> GetByLogin(string login);
-    User GetByLoginAndPassword(string login, string password);
-    Task<List<User>> GetOlderThen(DateOnly age);
-    Task Revoke(string login);
+    CookieDto SignIn(string login, string password);
+    Task Create(UserCreateDto userCreateDto, string creatorLogin);
+    Task Create(UserCreateByAdminDto userCreateByAdminDto, string creatorLogin);
+    Task Update(UserUpdateDto userUpdateDto, string modifierLogin);
+    Task<List<UserGetDto>> GetNotRevoked();
+    Task<UserGetDto> GetByLogin(string login);
+    UserGetDto GetByLoginAndPassword(string login, string password);
+    Task<List<UserGetDto>> GetOlderThen(DateTime age);
+    Task Revoke(string login, string revokerLogin);
     Task Delete(string login);
     Task Restore(string login);
 }
