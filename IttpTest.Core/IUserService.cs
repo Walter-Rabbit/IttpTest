@@ -6,15 +6,14 @@ namespace IttpTest.Core;
 public interface IUserService
 {
     CookieDto SignIn(string login, string password);
-    Task Create(UserCreateDto userCreateDto, string creatorLogin);
-    Task Create(UserCreateByAdminDto userCreateByAdminDto, string creatorLogin);
-    Task Update(UserUpdateDto userUpdateDto, string modifierLogin);
-    Task ChangeLogin(ChangeLoginDto changeLoginDto, string modifierLogin);
-    Task<List<User>> GetNotRevoked();
+    Task Create(UserCreateDto userCreateDto, Guid creatorId);
+    Task Update(UserUpdateDto userUpdateDto, Guid modifierId);
+    Task ChangeLogin(ChangeLoginDto changeLoginDto, Guid modifierId);
+    Task<List<UserGetFullDto>> GetNotRevoked();
     UserGetDto GetByLogin(string login);
-    User GetByLoginAndPassword(string login, string password);
-    Task<List<User>> GetOlderThen(DateTime age);
-    Task Revoke(string login, string revokerLogin);
+    UserGetFullDto GetByLoginAndPassword(string login, string password);
+    Task<List<UserGetFullDto>> GetOlderThen(DateTime age);
+    Task Revoke(string login, Guid revokerId);
     Task Delete(string login);
     Task Restore(string login);
 }

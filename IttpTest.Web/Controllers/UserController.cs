@@ -39,21 +39,14 @@ public class UserController : Controller
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, claimsPrincipal);
     }
 
-    // TODO: запретить админам пользоваться этой ручкой (можно сздать политику "User", заодно её кинуть в get через логин и пароль)
+    [Authorize(Policy = "Admin")]
     [HttpPost("create")]
     public async Task Create(UserCreateDto userCreateDto)
     {
-        await _userService.Create(userCreateDto, userCreateDto.Login);
-    }
-
-    [Authorize(Policy = "Admin")]
-    [HttpPost("create-by-admin")]
-    public async Task Create(UserCreateByAdminDto userCreateByAdminDto)
-    {
         await _userService.Create(
-            userCreateByAdminDto,
-            HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
-            throw new InternalException("There is no Login claim in cookie."));
+            userCreateDto,
+            Guid.Parse(HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Id")?.Value ??
+                       throw new InternalException("There is no Id claim in cookie.")));
     }
 
     [Authorize]
@@ -62,6 +55,10 @@ public class UserController : Controller
     {
         var modifierLogin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
                             throw new InternalException("There is no Login claim in cookie.");
+
+        var modifierId = Guid.Parse(HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Id")?.Value ??
+                                    throw new InternalException("There is no Id claim in cookie."));
+
         var modifierIsAdmin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "IsAdmin")?.Value ??
                               throw new InternalException("There is no IsAdmin claim in cookie.");
 
@@ -70,7 +67,7 @@ public class UserController : Controller
             throw new ForbiddenException("You can change only yours profile information.");
         }
 
-        await _userService.Update(userUpdateDto, modifierLogin);
+        await _userService.Update(userUpdateDto, modifierId);
     }
 
     [Authorize]
@@ -79,6 +76,10 @@ public class UserController : Controller
     {
         var modifierLogin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
                             throw new InternalException("There is no Login claim in cookie.");
+
+        var modifierId = Guid.Parse(HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Id")?.Value ??
+                                    throw new InternalException("There is no Id claim in cookie."));
+
         var modifierIsAdmin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "IsAdmin")?.Value ??
                               throw new InternalException("There is no IsAdmin claim in cookie.");
 
@@ -88,12 +89,12 @@ public class UserController : Controller
         }
 
 
-        await _userService.ChangeLogin(changeLoginDto, modifierLogin);
+        await _userService.ChangeLogin(changeLoginDto, modifierId);
     }
 
     [Authorize(Policy = "Admin")]
     [HttpGet("get-not-revoked")]
-    public async Task<List<User>> GetNotRevoked()
+    public async Task<List<UserGetFullDto>> GetNotRevoked()
     {
         return await _userService.GetNotRevoked();
     }
@@ -106,14 +107,14 @@ public class UserController : Controller
     }
 
     [HttpGet("get")]
-    public User Get(string login, string password)
+    public UserGetFullDto Get(string login, string password)
     {
         return _userService.GetByLoginAndPassword(login, password);
     }
 
     [Authorize(Policy = "Admin")]
     [HttpGet("get-older-then")]
-    public Task<List<User>> GetOlderThen(DateTime age)
+    public Task<List<UserGetFullDto>> GetOlderThen(DateTime age)
     {
         return _userService.GetOlderThen(age);
     }
@@ -122,9 +123,10 @@ public class UserController : Controller
     [HttpDelete("revoke")]
     public async Task Revoke(string login)
     {
-        await _userService.Revoke(login,
-            HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
-            throw new InternalException("There is no Login claim in cookie."));
+        await _userService.Revoke(
+            login,
+            Guid.Parse(HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Id")?.Value ??
+                       throw new InternalException("There is no Id claim in cookie.")));
     }
 
     [Authorize(Policy = "Admin")]

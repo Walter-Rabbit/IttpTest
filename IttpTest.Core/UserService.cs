@@ -15,9 +15,10 @@ public class UserService : IUserService
     {
         _ittpContext = ittpContext;
 
+        var rootId = Guid.NewGuid();
         if (_ittpContext.Users.FirstOrDefault(u => u.Login == configuration["RootUser:Login"]) is not null) return;
         _ittpContext.Users.Add(new User(
-            Guid.NewGuid(),
+            rootId,
             configuration["RootUser:Login"] ??
             throw new InternalException("Missing parameter in configuration: RootUser:Login"),
             configuration["RootUser:Password"] ??
@@ -29,8 +30,7 @@ public class UserService : IUserService
             null,
             true,
             DateTime.Now,
-            configuration["RootUser:Login"] ??
-            throw new InternalException("Missing parameter in configuration: RootUser:Login")));
+            rootId));
 
         _ittpContext.SaveChanges();
     }
@@ -62,7 +62,7 @@ public class UserService : IUserService
         return new CookieDto(user.Id, user.Login, user.Name, user.Admin);
     }
 
-    public async Task Create(UserCreateDto userCreateDto, string creatorLogin)
+    public async Task Create(UserCreateDto userCreateDto, Guid creatorId)
     {
         var user = new User(
             Guid.NewGuid(),
@@ -71,9 +71,9 @@ public class UserService : IUserService
             userCreateDto.Name,
             userCreateDto.Gender,
             userCreateDto.BirthDate,
-            false,
+            userCreateDto.Admin,
             DateTime.Now,
-            userCreateDto.Login);
+            creatorId);
 
         if (_ittpContext.Users.FirstOrDefault(u => u.Login == user.Login) is not null)
         {
@@ -84,29 +84,7 @@ public class UserService : IUserService
         await _ittpContext.SaveChangesAsync();
     }
 
-    public async Task Create(UserCreateByAdminDto userCreateByAdminDto, string creatorLogin)
-    {
-        var user = new User(
-            Guid.NewGuid(),
-            userCreateByAdminDto.Login,
-            userCreateByAdminDto.Password,
-            userCreateByAdminDto.Name,
-            userCreateByAdminDto.Gender,
-            userCreateByAdminDto.BirthDate,
-            userCreateByAdminDto.Admin,
-            DateTime.Now,
-            creatorLogin);
-
-        if (_ittpContext.Users.FirstOrDefault(u => u.Login == user.Login) is not null)
-        {
-            throw new LoginAlreadyExistsException($"Login {user.Login} already occupied.");
-        }
-
-        await _ittpContext.Users.AddAsync(user);
-        await _ittpContext.SaveChangesAsync();
-    }
-
-    public async Task Update(UserUpdateDto userUpdateDto, string modifierLogin)
+    public async Task Update(UserUpdateDto userUpdateDto, Guid modifierId)
     {
         var user = _ittpContext.Users.FirstOrDefault(u => u.Login == userUpdateDto.Login);
 
@@ -125,13 +103,13 @@ public class UserService : IUserService
         user.BirthDate = userUpdateDto.BirthDate;
         user.Gender = userUpdateDto.Gender;
         user.ModifiedOn = DateTime.Now;
-        user.ModifiedBy = modifierLogin;
+        user.ModifierId = modifierId;
 
         _ittpContext.Users.Update(user);
         await _ittpContext.SaveChangesAsync();
     }
 
-    public async Task ChangeLogin(ChangeLoginDto changeLoginDto, string modifierLogin)
+    public async Task ChangeLogin(ChangeLoginDto changeLoginDto, Guid modifierId)
     {
         var user = _ittpContext.Users.FirstOrDefault(u => u.Login == changeLoginDto.OldLogin);
 
@@ -144,7 +122,7 @@ public class UserService : IUserService
         {
             throw new RevokedException($"This user was revoked on {user.RevokedOn}");
         }
-        
+
         if (_ittpContext.Users.FirstOrDefault(u => u.Login == changeLoginDto.NewLogin) is not null)
         {
             throw new LoginAlreadyExistsException($"Login {changeLoginDto.NewLogin} already occupied.");
@@ -152,15 +130,30 @@ public class UserService : IUserService
 
         user.Login = changeLoginDto.NewLogin;
         user.ModifiedOn = DateTime.Now;
-        user.ModifiedBy = modifierLogin;
+        user.ModifierId = modifierId;
         _ittpContext.Users.Update(user);
         await _ittpContext.SaveChangesAsync();
     }
 
-    public async Task<List<User>> GetNotRevoked()
+    public async Task<List<UserGetFullDto>> GetNotRevoked()
     {
         return await _ittpContext.Users
             .Where(u => u.RevokedOn == null)
+            .Select(u => new UserGetFullDto(
+                u.Id,
+                u.Login,
+                u.Password,
+                u.Name,
+                u.Gender,
+                u.BirthDate,
+                u.Admin,
+                u.CreatedOn,
+                _ittpContext.Users.First(creator => creator.Id == u.CreatorId).Login,
+                u.ModifiedOn,
+                GetLogin(u.ModifierId),
+                u.RevokedOn,
+                GetLogin(u.RevokerId)
+            ))
             .ToListAsync();
     }
 
@@ -176,7 +169,7 @@ public class UserService : IUserService
         return new UserGetDto(user.Name, user.Gender, user.BirthDate, user.RevokedOn is null);
     }
 
-    public User GetByLoginAndPassword(string login, string password)
+    public UserGetFullDto GetByLoginAndPassword(string login, string password)
     {
         var user = _ittpContext.Users.FirstOrDefault(u => u.Login == login);
 
@@ -195,18 +188,46 @@ public class UserService : IUserService
             throw new IncorrectPasswordException("Incorrect password.");
         }
 
-        return user;
+        return new UserGetFullDto(
+            user.Id,
+            user.Login,
+            user.Password,
+            user.Name,
+            user.Gender,
+            user.BirthDate,
+            user.Admin,
+            user.CreatedOn,
+            _ittpContext.Users.First(creator => creator.Id == user.CreatorId).Login,
+            user.ModifiedOn,
+            GetLogin(user.ModifierId),
+            user.RevokedOn,
+            GetLogin(user.RevokerId));
     }
 
-    public async Task<List<User>> GetOlderThen(DateTime age)
+    public async Task<List<UserGetFullDto>> GetOlderThen(DateTime age)
     {
         // TODO: Заменить age на дату рождения
         return await _ittpContext.Users
             .Where(u => u.BirthDate != null && (DateTime.Now - u.BirthDate).Value.Ticks > age.Ticks)
+            .Select(u => new UserGetFullDto(
+                u.Id,
+                u.Login,
+                u.Password,
+                u.Name,
+                u.Gender,
+                u.BirthDate,
+                u.Admin,
+                u.CreatedOn,
+                _ittpContext.Users.First(creator => creator.Id == u.CreatorId).Login,
+                u.ModifiedOn,
+                GetLogin(u.ModifierId),
+                u.RevokedOn,
+                GetLogin(u.RevokerId)
+            ))
             .ToListAsync();
     }
 
-    public async Task Revoke(string login, string revokerLogin)
+    public async Task Revoke(string login, Guid revokerId)
     {
         var user = _ittpContext.Users.FirstOrDefault(u => u.Login == login);
 
@@ -226,7 +247,7 @@ public class UserService : IUserService
         }
 
         user.RevokedOn = DateTime.Now;
-        user.RevokedBy = revokerLogin;
+        user.RevokerId = revokerId;
 
         _ittpContext.Users.Update(user);
         await _ittpContext.SaveChangesAsync();
@@ -240,7 +261,7 @@ public class UserService : IUserService
         {
             throw new NotFoundException("There is no user with such login.");
         }
-        
+
         if (user.Admin)
         {
             throw new ForbiddenException("Only users can be deleted.");
@@ -261,9 +282,14 @@ public class UserService : IUserService
         }
 
         user.RevokedOn = null;
-        user.RevokedBy = null;
+        user.RevokerId = null;
 
         _ittpContext.Users.Update(user);
         await _ittpContext.SaveChangesAsync();
+    }
+
+    private string? GetLogin(Guid? id)
+    {
+        return _ittpContext.Users.FirstOrDefault(modifier => modifier.Id == id)?.Login;
     }
 }

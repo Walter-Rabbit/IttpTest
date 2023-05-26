@@ -19,7 +19,7 @@ public class User
         DateTime? birthDate, 
         bool admin, 
         DateTime createdOn,
-        string createdBy)
+        Guid creatorId)
     {
         Id = id;
         Login = login;
@@ -29,7 +29,7 @@ public class User
         BirthDate = birthDate;
         Admin = admin;
         CreatedOn = createdOn;
-        CreatedBy = createdBy;
+        CreatorId = creatorId;
     }
 
     public Guid Id { get; set; }
@@ -89,9 +89,9 @@ public class User
     public DateTime? BirthDate { get; set; }
     public bool Admin { get; set; }
     public DateTime CreatedOn { get; set; }
-    public string CreatedBy { get; set; }
+    public Guid CreatorId { get; set; }
     public DateTime? ModifiedOn { get; set; }
-    public string? ModifiedBy { get; set; }
+    public Guid? ModifierId { get; set; }
     public DateTime? RevokedOn { get; set; }
-    public string? RevokedBy { get; set; }
+    public Guid? RevokerId { get; set; }
 }
