@@ -13,9 +13,10 @@ public class ExceptionFilter : IExceptionFilter
             StatusCode = context.Exception switch
             {
                 LoginAlreadyExistsException => StatusCodes.Status400BadRequest,
+                ValidationException => StatusCodes.Status400BadRequest,
                 IncorrectPasswordException => StatusCodes.Status401Unauthorized,
-                RevokedException => StatusCodes.Status403Forbidden,
                 ForbiddenException => StatusCodes.Status403Forbidden,
+                RevokedException => StatusCodes.Status403Forbidden,
                 NotFoundException => StatusCodes.Status404NotFound,
                 _ => StatusCodes.Status500InternalServerError
             }

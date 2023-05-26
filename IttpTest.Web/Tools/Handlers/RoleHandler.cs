@@ -7,7 +7,7 @@ public class RoleHandler : AuthorizationHandler<RoleRequirement>
 {
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, RoleRequirement requirement)
     {
-        var isAdmin = context.User.Claims.FirstOrDefault(claim => claim.Type == "Role")?.Value;
+        var isAdmin = context.User.Claims.FirstOrDefault(claim => claim.Type == "IsAdmin")?.Value;
         
         if (isAdmin == "True" && requirement.Role == "Admin")
         {

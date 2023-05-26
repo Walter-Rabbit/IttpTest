@@ -1,5 +1,6 @@
 using IttpTest.Core;
 using IttpTest.Data;
+using IttpTest.Domain;
 using IttpTest.Web.Tools;
 using IttpTest.Web.Tools.Handlers;
 using IttpTest.Web.Tools.Requirements;

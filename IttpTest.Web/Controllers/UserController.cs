@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using IttpTest.Core;
+using IttpTest.Domain.Dtos;
 using IttpTest.Domain.Exceptions;
 using IttpTest.Domain.Models;
-using IttpTest.Web.Dtos;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -21,9 +21,6 @@ public class UserController : Controller
         _userService = userService;
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [HttpPost("sign-in")]
     public async Task Login([FromBody] SignInDto signInDto)
     {
@@ -33,7 +30,7 @@ public class UserController : Controller
             new Claim("Name", user.Name),
             new Claim("Login", user.Login),
             new Claim("Id", user.Id.ToString()),
-            new Claim("Role", user.Admin.ToString()),
+            new Claim("IsAdmin", user.Admin.ToString()),
         };
 
         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -42,19 +39,13 @@ public class UserController : Controller
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, claimsPrincipal);
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    // TODO: запретить админам пользоваться этой ручкой (можно сздать политику "User", заодно её кинуть в get через логин и пароль)
     [HttpPost("create")]
     public async Task Create(UserCreateDto userCreateDto)
     {
         await _userService.Create(userCreateDto, userCreateDto.Login);
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [Authorize(Policy = "Admin")]
     [HttpPost("create-by-admin")]
     public async Task Create(UserCreateByAdminDto userCreateByAdminDto)
@@ -62,94 +53,87 @@ public class UserController : Controller
         await _userService.Create(
             userCreateByAdminDto,
             HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
-            throw new InternalException("There is no login claim in cookie."));
+            throw new InternalException("There is no Login claim in cookie."));
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [Authorize]
     [HttpPatch("update")]
     public async Task Update(UserUpdateDto userUpdateDto)
     {
-        await _userService.Update(userUpdateDto,
-            HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
-            throw new InternalException("There is no login claim in cookie."));
+        var modifierLogin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
+                            throw new InternalException("There is no Login claim in cookie.");
+        var modifierIsAdmin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "IsAdmin")?.Value ??
+                              throw new InternalException("There is no IsAdmin claim in cookie.");
+
+        if (modifierLogin != userUpdateDto.Login && modifierIsAdmin != "True")
+        {
+            throw new ForbiddenException("You can change only yours profile information.");
+        }
+
+        await _userService.Update(userUpdateDto, modifierLogin);
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize]
+    [HttpPatch("update/login")]
+    public async Task ChangeLogin(ChangeLoginDto changeLoginDto)
+    {
+        var modifierLogin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
+                            throw new InternalException("There is no Login claim in cookie.");
+        var modifierIsAdmin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "IsAdmin")?.Value ??
+                              throw new InternalException("There is no IsAdmin claim in cookie.");
+
+        if (modifierLogin != changeLoginDto.OldLogin && modifierIsAdmin != "True")
+        {
+            throw new ForbiddenException("You can change only yours profile information.");
+        }
+
+
+        await _userService.ChangeLogin(changeLoginDto, modifierLogin);
+    }
+
     [Authorize(Policy = "Admin")]
     [HttpGet("get-not-revoked")]
-    public async Task<List<UserGetDto>> GetNotRevoked()
+    public async Task<List<User>> GetNotRevoked()
     {
         return await _userService.GetNotRevoked();
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [Authorize(Policy = "Admin")]
     [HttpGet("get/{login}")]
-    public async Task<UserGetDto> Get(string login)
+    public UserGetDto Get(string login)
     {
-        return await _userService.GetByLogin(login);
+        return _userService.GetByLogin(login);
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [HttpGet("get")]
-    public UserGetDto Get(SignInDto signInDto)
+    public User Get(string login, string password)
     {
-        return _userService.GetByLoginAndPassword(signInDto.Login, signInDto.Password);
+        return _userService.GetByLoginAndPassword(login, password);
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [Authorize(Policy = "Admin")]
     [HttpGet("get-older-then")]
-    public Task<List<UserGetDto>> GetOlderThen(DateTime age)
+    public Task<List<User>> GetOlderThen(DateTime age)
     {
         return _userService.GetOlderThen(age);
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [Authorize(Policy = "Admin")]
     [HttpDelete("revoke")]
     public async Task Revoke(string login)
     {
         await _userService.Revoke(login,
             HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
-            throw new InternalException("There is no login claim in cookie."));
+            throw new InternalException("There is no Login claim in cookie."));
     }
-    
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+
     [Authorize(Policy = "Admin")]
     [HttpDelete("delete")]
     public async Task Delete(string login)
     {
         await _userService.Delete(login);
     }
-    
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+
     [Authorize(Policy = "Admin")]
     [HttpPatch("restore")]
     public async Task Restore(string login)

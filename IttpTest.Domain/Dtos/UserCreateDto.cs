@@ -1,7 +1,16 @@
-﻿namespace IttpTest.Web.Dtos;
+﻿namespace IttpTest.Domain.Dtos;
 
 public class UserCreateDto
 {
+    public UserCreateDto(string login, string password, string name, int gender, DateTime? birthDate)
+    {
+        Login = login;
+        Password = password;
+        Name = name;
+        Gender = gender;
+        BirthDate = birthDate;
+    }
+
     public string Login { get; set; }
     public string Password { get; set; }
     public string Name { get; set; }
