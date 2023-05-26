@@ -15,10 +15,12 @@ namespace IttpTest.Web.Controllers;
 public class UserController : Controller
 {
     private readonly IUserService _userService;
+    private readonly IConfiguration _configuration;
 
-    public UserController(IUserService userService)
+    public UserController(IUserService userService, IConfiguration configuration)
     {
         _userService = userService;
+        _configuration = configuration;
     }
 
     [HttpPost("sign-in")]
@@ -53,6 +55,7 @@ public class UserController : Controller
     [HttpPatch("update")]
     public async Task Update(UserUpdateDto userUpdateDto)
     {
+        // TODO: Аналогично с изменение логина, нужно обеновить куки. 
         var modifierLogin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
                             throw new InternalException("There is no Login claim in cookie.");
 
@@ -74,6 +77,9 @@ public class UserController : Controller
     [HttpPatch("update/login")]
     public async Task ChangeLogin(ChangeLoginDto changeLoginDto)
     {
+        // TODO: Нужно изменить куки, раз данные изменились. (если меняются данные владельца сессии)
+        // Из-за этого видимо ошибка вылетает, когда пытаешься getnotrevoked вызвать
+        
         var modifierLogin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
                             throw new InternalException("There is no Login claim in cookie.");
 
@@ -88,6 +94,10 @@ public class UserController : Controller
             throw new ForbiddenException("You can change only yours profile information.");
         }
 
+        if (modifierLogin == _configuration["RootUser:Login"])
+        {
+            throw new ForbiddenException("You can't change root login.");
+        }
 
         await _userService.ChangeLogin(changeLoginDto, modifierId);
     }
