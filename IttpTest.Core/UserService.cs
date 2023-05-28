@@ -59,7 +59,7 @@ public class UserService : IUserService
             throw new IncorrectPasswordException("Incorrect password.");
         }
 
-        return new CookieDto(user.Id, user.Login, user.Name, user.Admin);
+        return new CookieDto(user.Id, user.Login, user.Admin);
     }
 
     public async Task Create(UserCreateDto userCreateDto, Guid creatorId)
@@ -204,11 +204,10 @@ public class UserService : IUserService
             GetLogin(user.RevokerId));
     }
 
-    public async Task<List<UserGetFullDto>> GetOlderThen(DateTime age)
+    public async Task<List<UserGetFullDto>> GetOlderThen(DateTime birthDate)
     {
-        // TODO: Заменить age на дату рождения
         return await _ittpContext.Users
-            .Where(u => u.BirthDate != null && (DateTime.Now - u.BirthDate).Value.Ticks > age.Ticks)
+            .Where(u => u.BirthDate != null && u.BirthDate > birthDate)
             .Select(u => new UserGetFullDto(
                 u.Id,
                 u.Login,

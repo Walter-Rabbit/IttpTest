@@ -2,17 +2,20 @@
 
 public class UserGetFullDto
 {
-    // TODO: Прочекать, что после изменения логина админа, в get методах тоже изменился логин
     public UserGetFullDto(
-        Guid id, 
-        string login, 
-        string password, 
+        Guid id,
+        string login,
+        string password,
         string name,
-        int gender, 
-        DateTime? birthDate, 
-        bool admin, 
+        int gender,
+        DateTime? birthDate,
+        bool admin,
         DateTime createdOn,
-        string createdBy, DateTime? modifiedOn, string? modifiedBy, DateTime? revokedOn, string? revokedBy)
+        string createdBy,
+        DateTime? modifiedOn,
+        string? modifiedBy,
+        DateTime? revokedOn,
+        string? revokedBy)
     {
         Id = id;
         Login = login;

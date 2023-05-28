@@ -29,7 +29,6 @@ public class UserController : Controller
         var user = _userService.SignIn(signInDto.Login, signInDto.Password);
         var claims = new List<Claim>
         {
-            new Claim("Name", user.Name),
             new Claim("Login", user.Login),
             new Claim("Id", user.Id.ToString()),
             new Claim("IsAdmin", user.Admin.ToString()),
@@ -55,7 +54,6 @@ public class UserController : Controller
     [HttpPatch("update")]
     public async Task Update(UserUpdateDto userUpdateDto)
     {
-        // TODO: Аналогично с изменение логина, нужно обеновить куки. 
         var modifierLogin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
                             throw new InternalException("There is no Login claim in cookie.");
 
@@ -77,9 +75,6 @@ public class UserController : Controller
     [HttpPatch("update/login")]
     public async Task ChangeLogin(ChangeLoginDto changeLoginDto)
     {
-        // TODO: Нужно изменить куки, раз данные изменились. (если меняются данные владельца сессии)
-        // Из-за этого видимо ошибка вылетает, когда пытаешься getnotrevoked вызвать
-        
         var modifierLogin = HttpContext.User.Claims.FirstOrDefault(claim => claim.Type == "Login")?.Value ??
                             throw new InternalException("There is no Login claim in cookie.");
 
@@ -100,6 +95,21 @@ public class UserController : Controller
         }
 
         await _userService.ChangeLogin(changeLoginDto, modifierId);
+
+        if (changeLoginDto.OldLogin == modifierLogin)
+        {
+            var claims = new List<Claim>
+            {
+                new Claim("Login", changeLoginDto.NewLogin),
+                new Claim("Id", modifierId.ToString()),
+                new Claim("IsAdmin", modifierIsAdmin),
+            };
+
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, claimsPrincipal);
+        }
     }
 
     [Authorize(Policy = "Admin")]
@@ -124,9 +134,9 @@ public class UserController : Controller
 
     [Authorize(Policy = "Admin")]
     [HttpGet("get-older-then")]
-    public Task<List<UserGetFullDto>> GetOlderThen(DateTime age)
+    public Task<List<UserGetFullDto>> GetOlderThen(DateTime birthDate)
     {
-        return _userService.GetOlderThen(age);
+        return _userService.GetOlderThen(birthDate);
     }
 
     [Authorize(Policy = "Admin")]
