@@ -2,7 +2,6 @@ using System.Security.Claims;
 using IttpTest.Core;
 using IttpTest.Domain.Dtos;
 using IttpTest.Domain.Exceptions;
-using IttpTest.Domain.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -68,6 +67,18 @@ public class UserController : Controller
             throw new ForbiddenException("You can change only yours profile information.");
         }
 
+        if (modifierLogin != userUpdateDto.Login && 
+            modifierLogin != _configuration["RootUser:Login"] && 
+            _userService.IsAdmin(userUpdateDto.Login))
+        {
+            throw new ForbiddenException("You can't change profile information of other admin.");
+        }
+
+        if (userUpdateDto.Login == _configuration["RootUser:Login"])
+        {
+            throw new ForbiddenException("You can't change root information.");
+        }
+
         await _userService.Update(userUpdateDto, modifierId);
     }
 
@@ -89,7 +100,14 @@ public class UserController : Controller
             throw new ForbiddenException("You can change only yours profile information.");
         }
 
-        if (modifierLogin == _configuration["RootUser:Login"])
+        if (modifierLogin != changeLoginDto.OldLogin && 
+            modifierLogin != _configuration["RootUser:Login"] && 
+            _userService.IsAdmin(changeLoginDto.OldLogin))
+        {
+            throw new ForbiddenException("You can't change profile information of other admin.");
+        }
+
+        if (changeLoginDto.OldLogin == _configuration["RootUser:Login"])
         {
             throw new ForbiddenException("You can't change root login.");
         }

@@ -287,6 +287,18 @@ public class UserService : IUserService
         await _ittpContext.SaveChangesAsync();
     }
 
+    public bool IsAdmin(string login)
+    {
+        var user = _ittpContext.Users.FirstOrDefault(u => u.Login == login);
+
+        if (user is null)
+        {
+            throw new NotFoundException("There is no user with such login.");
+        }
+
+        return user.Admin;
+    }
+
     private string? GetLogin(Guid? id)
     {
         return _ittpContext.Users.FirstOrDefault(modifier => modifier.Id == id)?.Login;

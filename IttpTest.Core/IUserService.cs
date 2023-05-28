@@ -16,4 +16,5 @@ public interface IUserService
     Task Revoke(string login, Guid revokerId);
     Task Delete(string login);
     Task Restore(string login);
+    bool IsAdmin(string login);
 }
